@@ -1,0 +1,44 @@
+.promo-card {
+    width: 120%;
+}
+.h1 {
+    color: white;
+}
+.p {
+    color: white;
+}
+.graph-img {
+    display: none;
+}
+
+.container {
+    display: flex;
+    justify-content: left;
+}
+.graph-container {
+    width: 120%;
+    overflow: hidden;
+}
+
+.graph-img {
+    width: 100%;
+    height: auto;
+}
+
+.side_navbar {
+    margin: 0;
+    padding: 0;
+}
+
+.main-body {
+    margin-left: 0;
+}
+
+#analyze-form {
+    display: flex;
+    align-items: center;
+}
+#analyze-form button {
+    margin-right: 10px;
+    margin-left: 0;
+}
