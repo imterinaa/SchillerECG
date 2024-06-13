@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard | By Code Info</title>
+  <link rel="stylesheet" href="../static/css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    button{
+      background-color: white;
+      margin: 10px;
+      color: #000000;
+      display: block;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .close-btn {
+      background: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 5px;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+    .search-form {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 600px;
+      text-align: center;
+      position: relative;
+    }
+    .search-form h2 {
+      margin-top: 0;
+    }
+    .form-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .form-row label {
+      margin-right: 10px;
+      flex: 0 0 100px;
+      text-align: right;
+    }
+    .form-row input {
+      flex: 1;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .error {
+      color: red;
+      display: none;
+    }
+    .history_lists tbody tr:hover {
+      background-color: #b8b4b48b; /* Серый цвет */
+    }
+    .save-btn {
+    display: inline-block;
+    background-color: #ffffff;
+    border: none;
+    color: rgb(0, 0, 0);
+    padding: 2px 2px;
+    text-align: center;
+    margin: 2px 2px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+}
+
+  .save-btn:hover {
+      background-color: #00000019;
+      transform: scale(1.05);
+  }
+
+  .save-btn:active {
+      background-color: #0000000b;
+      transform: scale(0.95);
+  }
+
+  .save-btn i {
+      margin-right: 8px;
+  }
+
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">
+      <a href="/">SchillerECG</a>
+    </div>
+  </header>
+  <div class="container">
+    <nav>
+      <div class="side_navbar">
+        <span>Меню</span>
+        <a href="#" class="active">Главная</a>
+      </div>
+    </nav>
+    <div class="main-body">
+      <h2>Архив данных ЭКГ</h2>
+      <div style="margin: 20px;"></div>
+      <button id="toggleSearchBtn"><i class="fas fa-search"></i> Поиск</button>
+      <div id="overlay">
+        <div class="search-form">
+          <button class="close-btn" id="closeBtn">X</button>
+          <h2>Поиск</h2>
+          <div class="form-row">
+            <label for="lastName">Фамилия:</label>
+            <input type="text" id="lastName" name="lastName">
+          </div>
+          <div class="form-row">
+            <label for="firstName">Имя:</label>
+            <input type="text" id="firstName" name="firstName">
+          </div>
+          <div class="form-row">
+            <label for="birthDate">Дата рождения:</label>
+            <input type="date" id="birthDate" name="birthDate">
+          </div>
+          <div class="form-row">
+            <label for="uploadDate">Дата загрузки:</label>
+            <input type="date" id="uploadDate" name="uploadDate">
+          </div>
+          <button id="searchBtn">Искать</button>
+          <button id="cancelSearchBtn" style="display: none;">Отменить поиск</button>
+          <p id="errorMessage" class="error">Пожалуйста, заполните хотя бы одно поле.</p>
+        </div>
+      </div>
+<script>
+    document.getElementById('toggleSearchBtn').addEventListener('click', function() {
+      const overlay = document.getElementById('overlay');
+      const searchForm = document.querySelector('.search-form');
+      if (overlay.style.display === 'none') {
+        overlay.style.display = 'flex';
+      } else {
+        overlay.style.display = 'none';
+        document.getElementById('cancelSearchBtn').style.display = 'none';
+        document.getElementById('searchBtn').innerText = 'Искать';
+      }
+    });
+
+    
+
+    document.getElementById('searchBtn').addEventListener('click', function() {
+      const lastName = document.getElementById('lastName').value;
+      const firstName = document.getElementById('firstName').value;
+      const birthDate = document.getElementById('birthDate').value;
+      const uploadDate = document.getElementById('uploadDate').value;
+      const errorMessage = document.getElementById('errorMessage');
+
+      if (!lastName && !firstName && !birthDate && !uploadDate) {
+        errorMessage.style.display = 'block';
+      } else {
+        errorMessage.style.display = 'none';
+        const formData = {
+          lastName: lastName,
+          firstName: firstName,
+          birthDate: birthDate,
+          uploadDate: uploadDate
+        };
+
+        fetch('/search_notes', {
+          method: 'POST',
+          headers: {
+          'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+          })
+          .then(response => response.json())
+          .then(data => {
+          renderSearchResults(data); 
+          document.getElementById('overlay').style.display = 'none'; 
+          document.getElementById('cancelSearchBtn').style.display = 'inline'; 
+          document.getElementById('searchBtn').innerText = 'Поиск снова'; 
+          })
+          .catch((error) => {
+          console.error('Error:', error);
+          });
+          }
+          });
+          document.getElementById('cancelSearchBtn').addEventListener('click', function() {
+  fetch('/dashboard/first_five_json')
+    .then(response => response.json())
+    .then(data => {
+      renderSearchResults(data); // Отображение первых пяти записей
+      document.getElementById('overlay').style.display = 'none'; // Скрытие формы поиска
+      document.getElementById('cancelSearchBtn').style.display = 'none'; // Скрытие кнопки отмены поиска
+      document.getElementById('searchBtn').innerText = 'Искать'; // Возвращение исходного текста кнопки поиска
+    })
+    .catch(error => console.error('Error:', error));
+});
+
+function renderSearchResults(data) {
+  const tableBody = document.querySelector('.history_lists table tbody');
+  tableBody.innerHTML = '';
+  data.forEach(note => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${note.id}</td>
+      <td>${note.date_of_birth}</td>
+      <td>${note.date_of_upload}</td>
+      <td>${note.first_name}</td>
+      <td>${note.last_name}</td>
+      <td>
+        <a href="/detail/${note.id}">Показать больше</a>
+        <button type="button" class="save-btn">
+          <i class="fa-solid fa-save fa-2x"></i>
+        </button>
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+</script>
+<div class="history_lists">
+  <div class="list1">
+    <div class="row">
+      <h4>История</h4>
+      <button id="toggleTableBtn">Больше</button>
+      <script>
+        let isTableVisible = false; 
+        document.getElementById('toggleTableBtn').addEventListener('click', function() {
+            const tableBody = document.querySelector('.history_lists table tbody');
+            if (!isTableVisible) {
+              fetch('/dashboard/all_json')
+                .then(response => response.json())
+                .then(data => {
+                  tableBody.innerHTML = '';
+                  data.forEach(note => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                      <td>${note.id}</td>
+                      <td>${note.date_of_birth}</td>
+                      <td>${note.date_of_upload}</td>
+                      <td>${note.first_name}</td>
+                      <td>${note.last_name}</td>
+                      <td>
+                        <a href="/detail/${note.id}">Показать больше</a>
+                        <button type="button" class="save-btn">
+                          <i class="fa-solid fa-save fa-2x"></i>
+                        </button>
+                      </td>
+                    `;
+                    tableBody.appendChild(row);
+                  });
+                  this.textContent = 'Скрыть';
+                  isTableVisible = true;
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+              fetch('/dashboard/first_five_json')
+                .then(response => response.json())
+                .then(data => {
+                  renderSearchResults(data); 
+                  this.textContent = 'Больше';
+                  isTableVisible = false;
+                })
+                .catch(error => console.error('Error:', error));
+            }
+          });
+        </script>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Дата рождения</th>
+            <th>Загружено</th>
+            <th>Имя</th>
+            <th>Фамилия</th>
+            <th>Данные</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for note in notes %}
+          <tr onclick="window.location.href='/detail/{{ note.id }}'">
+            <td>{{ note.id }}</td>
+            <td>{{ note.date_of_birth }}</td>
+            <td>{{ note.date_of_upload }}</td>
+            <td>{{ note.first_name }}</td>
+            <td>{{ note.last_name }}</td>
+            <td>
+              <a href="/detail/${note.id}">Показать больше</a>
+              <button onclick="event.stopPropagation(); downloadReport('{{ note.id }}')"  type="button" class="save-btn">
+                <i class="fa-solid fa-save fa-2x"></i>
+                <script src="../static/js/detail.js"></script>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
+

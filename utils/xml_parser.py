@@ -16,12 +16,7 @@ def parse_xml_file(file_path):
             encoded_lastname = codecs.encode(lastname_element.text, 'cp857').decode('cp866')
         except UnicodeEncodeError:
             print(f"Cannot encode '{lastname_element.text}' in utf-8")
-    firstnames = root.findall('.//firstname')
-    for firstname_element in firstnames:
-        try:
-            encoded_firstname = codecs.encode(lastname_element.text, 'cp857').decode('cp866')
-        except UnicodeEncodeError:
-            print(f"Cannot encode '{lastname_element.text}' in utf-8")        
+            
     birthdate_element = root.find('.//birthdate')
     if birthdate_element is not None:
         birthdate_value = format_date_of_birth(birthdate_element.text)
@@ -48,8 +43,7 @@ def parse_xml_file(file_path):
     date_of_upload = parse(date_value)
     date_of_upload = date_of_upload.date()
 
-    Note.create_note(date_of_birth, date_of_upload, encoded_firstname, encoded_lastname,result)
-
+    Note.create_note(date_of_birth, date_of_upload,encoded_lastname , encoded_lastname ,result)
     return result
     
 def format_date_of_birth(date_string):
@@ -61,3 +55,6 @@ def format_date_of_birth(date_string):
     
     formatted_date = f"{day}.{month}.{year}"
     return formatted_date
+
+if __name__ == "__main__":
+    main()

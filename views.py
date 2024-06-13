@@ -1,95 +1,26 @@
 from flask import Blueprint, render_template, request, redirect, url_for, send_file, jsonify, render_template_string
 from models import Note
-from helpers import analyze_ecg_data, interpret_predictions, create_pdf_report
-
+from helpers import create_pdf_report
+import matplotlib.pyplot as plt 
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import io
+from io import BytesIO
+import base64
+from xml_parser import parse_xml_file
+import os
+import jinja2
+from scipy.signal import find_peaks, butter, filtfilt
+import json
+import numpy as np 
 bp = Blueprint('main', __name__)
+
 
 @bp.route('/')
 def hello():
     all_notes = Note.get_all_notes()
     notes = all_notes[:5]
-    return render_template('dashboard.html', notes=notes, all_notes=all_notes)
+    return render_template('firstpage.html', notes=notes, all_notes=all_notes)
 
-@bp.route('/graph/<int:note_id>')
-def graph(note_id):
-    note = Note.get_note_by_id(note_id)
-    if note:
-        return render_template('detail.html', note=note)
-    else:
-        return "Запись не найдена", 404
-
-@bp.route('/read_numbers')
-def read_numbers():
-    file_path = 'numbers.txt' 
-    positive_numbers = read_and_filter_positive_numbers(file_path)
-    create_chart(positive_numbers) 
-    return render_template('numbers.html', numbers=positive_numbers)
-
-@bp.route('/all_once')
-def once():
-    graph_data = parse_xml_file("./sample.xml")
-    graphs = []
-    fig, ax = plt.subplots()
-    fig.set_size_inches(20, 5) 
-    for title, data_str in graph_data.items():
-        data = [float(val) for val in data_str.split(',') if val.strip()]
-        ax.plot(data, label=title)
-    ax.legend()
-    img = BytesIO()
-    plt.savefig(img, format='png')
-    img.seek(0)
-    plt.close()
-    graph_url = base64.b64encode(img.getvalue()).decode()
-    strings = ["Строка 1", "Строка 2", "Строка 3"]
-    template_string = '''
-    <!doctype html>
-    <html lang="ru">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>График и список текста</title>
-    </head>
-    <body>
-        <h1>График и список текста</h1>
-        <div>
-            <h2>График</h2>
-            <img src="data:image/png;base64,{{ graph_url }}" alt="График">
-        </div>
-        <div>
-            <h2>Список текста</h2>
-            <ul>
-                {% for string in strings %}
-                    <li>{{ string }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-    </body>
-    </html>
-    '''
-    rendered_html = render_template_string(template_string, graph_url=graph_url)
-    return rendered_html
-
-@bp.route('/diff')
-def diff():
-    graph_data = parse_xml_file("./sample.xml")
-    graphs = []
-    for title, data_str in graph_data.items():
-        data = [float(val) for val in data_str.split(',') if val.strip()]
-        fig, ax = plt.subplots()
-        fig.set_size_inches(20, 5) 
-        ax.plot(data)
-        ax.set_title(title)
-        img = BytesIO()
-        plt.savefig(img, format='png')
-        img.seek(0)
-        plt.close()
-        graph_url = base64.b64encode(img.getvalue()).decode()
-        graphs.append(graph_url)
-    return render_template('index.html', graphs=graphs, num_graphs=len(graphs))
-
-@bp.route('/show_chart')
-def show_chart():
-    return render_template('chart.html')
 
 @bp.route('/dashboard/all_json')
 def dashboard_all_json():
@@ -114,6 +45,7 @@ def dashboard_first_five_json():
 @bp.route('/search_notes', methods=['POST'])
 def search_notes():
     data = request.json
+    print(data) 
     last_name = data.get('lastName')
     first_name = data.get('firstName')
     birth_date = data.get('birthDate')
@@ -131,16 +63,6 @@ def search_notes():
     notes = [note.to_dict() for note in results]
     return jsonify(notes)
 
-@bp.route('/search', methods=['POST'])
-def search():
-    data = request.json
-    last_name = data.get('lastName')
-    first_name = data.get('firstName')
-    birth_date = data.get('birthDate')
-    upload_date = data.get('uploadDate')
-    results = Note.search_notes(last_name=last_name, first_name=first_name, birth_date=birth_date, upload_date=upload_date)
-    return jsonify([note.to_dict() for note in results])
-
 @bp.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -154,6 +76,7 @@ def upload_file():
         return jsonify({"status": "success", "message": "File received", "filename": file.filename}), 200
     else:
         return jsonify({"status": "failure", "message": "Invalid file type"}), 400
+
 
 @bp.route('/detail/<int:note_id>')
 def detail_view(note_id):
@@ -177,6 +100,45 @@ def detail_view(note_id):
     else:
         return "Запись не найдена", 404
 
+def bandpass_filter(data, lowcut, highcut, fs, order=1):
+    nyquist = 0.5 * fs
+    low = lowcut / nyquist
+    high = highcut / nyquist
+    b, a = butter(order, [low, high], btype='band')
+    y = filtfilt(b, a, data)
+    return y
+
+@bp.route('/analyze_plot', methods=['POST'])
+def plot():
+
+    fs = 500
+    note_id = request.json.get('note_id')
+    note = Note.get_note_by_id(note_id)
+    
+    data = [float(val) for val in note.data.get('II').split(',') if val.strip()]
+    np_data = np.array(data)
+    
+    ecg_lead = (np_data - np.min(np_data)) / (np.max(np_data) - np.min(np_data))
+    
+    filtered_ecg = bandpass_filter(ecg_lead, 0.5, 45, fs, order=1)
+    
+    peaks, _ = find_peaks(filtered_ecg, distance=fs/2.5, height=np.mean(filtered_ecg) + 0.5 * np.std(filtered_ecg))
+    
+    fig, ax = plt.subplots(figsize=(11, 5))
+    ax.plot(filtered_ecg, label='ECG')
+    ax.plot(peaks, filtered_ecg[peaks], 'ro', label='R-peaks')
+    ax.legend()
+    
+    canvas = FigureCanvas(fig)
+    buf = io.BytesIO()
+    canvas.print_png(buf)
+    plot_url = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    r_peak_intervals = np.diff(peaks) / fs
+    heart_rate = 60 / np.mean(r_peak_intervals)
+    
+    return jsonify({'heart_rate': round(heart_rate),'plot_url': plot_url})
+
 @bp.route('/download_report/<int:note_id>')
 def download_report(note_id):
     note = Note.get_note_by_id(note_id)
@@ -185,52 +147,4 @@ def download_report(note_id):
     buffer = create_pdf_report(note)
     return send_file(buffer, as_attachment=True, download_name='report.pdf', mimetype='application/pdf')
 
-@bp.route('/analyze/<int:note_id>', methods=['GET'])
-def analyze_ecg1(note_id):
-    note = Note.get_note_by_id(note_id)
-    if not note:
-        return jsonify({"error": "Запись не найдена"}), 404
-    ecg_data = note.data
-    ecg_samples = []
-    for lead, data_str in ecg_data.items():
-        np_array = np.array([float(x) for x in data_str.split(',') if x.strip()])
-        ecg_samples.append(np_array[:500])
-    ecg_samples = np.stack(ecg_samples).reshape(-1, 1, 500)
-    predictions = analyze_ecg_data(ecg_samples)
-    interpreted_predictions = interpret_predictions(predictions)
-    return jsonify({"ecg_data": interpreted_predictions})
 
-@bp.route('/submit', methods=['POST'])
-def submit():
-    data = request.json
-    Note.create_note(
-        date_of_birth=data.get('date_of_birth'),
-        date_of_upload=data.get('date_of_upload'),
-        first_name=data.get('first_name'),
-        last_name=data.get('last_name'),
-        data=data.get('data')
-    )
-    return redirect(url_for('main.hello'))
-
-@bp.route('/search_form')
-def search_form():
-    return render_template('search1.html')
-
-@bp.route('/download_file')
-def download_file():
-    file_path = generate_file()
-    response = send_file(file_path, as_attachment=True)
-    os.remove(file_path)
-    return response
-
-def generate_file():
-    notes = Note.query.all()
-    file_path = 'temp.txt'
-    with open(file_path, 'w') as file:
-        for note in notes:
-            file.write(f"{note.first_name} {note.last_name}\n")
-    return file_path
-
-@bp.route('/upload_file')
-def upload_file_template():
-    return render_template('upload.html')

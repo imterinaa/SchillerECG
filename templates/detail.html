@@ -1,58 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
+    <script>
+        function analyzeECG(noteId) {
+            fetch('/help', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ note_id: noteId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('analysisResult').innerHTML = `
+                    <p>Средняя частота сердечных сокращений: ${data.heart_rate} ударов в минуту</p>
+                    <img src="${data.plot_url}" alt="ECG Plot">
+                `;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
 <head>
     <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <link rel="stylesheet" href="../static/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" />
-    <link rel="stylesheet" href="../static/css/detail-style.css" />
     <title>Детальная информация о записи</title>
+    <style>
+        .promo-card{
+            width: 120%;
+        }
+        .h1{
+            color: white;
+        }
+        .p {
+            color: white;
+        }
+        .graph-img {
+            display: none;
+        }
+
+        .container {
+            display: flex;
+            justify-content:left;
+        }
+        .graph-container {
+            width: 120%; 
+            overflow: hidden;
+        }
+
+        .graph-img {
+            width: 100%; 
+            height: auto;
+        }
+
+        .side_navbar {
+            margin: 0;
+            padding: 0; 
+        }
+
+        .main-body {
+            margin-left: 0; 
+        }
+
+        #analyze-form {
+            display: flex;
+            align-items: center;
+        }
+        #analyze-form button {
+            margin-right: 10px;
+            margin-left: 0;
+        }
+
+    </style>
 </head>
 <body>
     <header class="header">
         <div class="logo">
-            <a href="/">SchillerECG</a>
+          <a href="/">SchillerECG</a>
+        </div>
         </div>
     </header>
     <div class="container">
         <nav>
-            <div class="side_navbar">
-                <span>Графики ЭКГ</span>
-                <a href="#" class="active" onclick="toggleGraph(0)">I</a>
-                <a href="#" onclick="toggleGraph(1)">II</a>
-                <a href="#" onclick="toggleGraph(2)">III</a>
-                <a href="#" onclick="toggleGraph(3)">AVR</a>
-                <a href="#" onclick="toggleGraph(4)">AVL</a>
-                <a href="#" onclick="toggleGraph(5)">AVF</a>
-                <a href="#" onclick="toggleGraph(6)">V1</a>
-                <a href="#" onclick="toggleGraph(7)">V2</a>
-                <a href="#" onclick="toggleGraph(8)">V3</a>
-                <a href="#" onclick="toggleGraph(9)">V4</a>
-                <a href="#" onclick="toggleGraph(10)">V5</a>
-                <a href="#" onclick="toggleGraph(11)">V6</a>
-            </div>
+          <div class="side_navbar">
+            <span>Графики ЭКГ</span>
+            <a href="#" class="active" onclick="toggleGraph(0)">I</a>
+            <a href="#" onclick="toggleGraph(1)">II</a>
+            <a href="#" onclick="toggleGraph(2)">III</a>
+            <a href="#" onclick="toggleGraph(3)">AVR</a>
+            <a href="#" onclick="toggleGraph(4)">AVL</a>
+            <a href="#" onclick="toggleGraph(5)">AVF</a>
+            <a href="#" onclick="toggleGraph(6)">V1</a>
+            <a href="#" onclick="toggleGraph(7)">V2</a>
+            <a href="#" onclick="toggleGraph(8)">V3</a>
+            <a href="#" onclick="toggleGraph(9)">V4</a>
+            <a href="#" onclick="toggleGraph(10)">V5</a>
+            <a href="#" onclick="toggleGraph(11)">V6</a>
+          </div>
         </nav>
+    
         <div class="main-body">
             <div class="promo_card">
-                <h1>Детальная информация о записи</h1>
-                <p>ID: {{ note.id }}</p>
-                <p>Дата рождения: {{ note.date_of_birth }}</p>
-                <p>Дата загрузки: {{ note.date_of_upload }}</p>
-                <p>Имя: {{ note.first_name }}</p>
-                <p>Фамилия: {{ note.last_name }}</p>
-                <form id="analyze-form">
-                    <button type="button" onclick="analyzeECG('{{ note.id }}')">Анализировать ЭКГ</button>
-                    <button type="button" onclick="downloadReport('{{ note.id }}')">Скачать отчет</button>
-                </form>
-                <div id="analysisResult"></div>
-            </div>
-            <div id="result"></div>
-            {% for graph_url in graph_urls %}
-                <div class="graph-container">
-                    <img src="data:image/png;base64,{{ graph_url }}" class="graph-img">
-                </div>
-            {% endfor %}
+            <h1>Детальная информация о записи</h1>
+            <p>ID: {{ note.id }}</p>
+            <p>Дата рождения: {{ note.date_of_birth }}</p>
+            <p>Дата загрузки: {{ note.date_of_upload }}</p>
+            <p>Имя: {{ note.first_name }}</p>
+            <p>Фамилия: {{ note.last_name }}</p>
+            <form id="analyze-form" onsubmit="event.preventDefault(); analyzeECG('{{ note.id }}');">
+                <button id="show-plot">Анализировать ЭКГ</button>
+                <button type="button" onclick="downloadReport('{{ note.id }}')">Скачать отчет</button>
+            </form>
+            <div id="analysisResult"></div>
         </div>
+        <div id="result"></div>
+        <div class="graph-container">
+            <img id="plot" src="" style="display:none;">
+        </div>
+        {% for graph_url in graph_urls %}
+            <div class="graph-container">
+                <img src="data:image/png;base64,{{ graph_url }}" class="graph-img">
+            </div>
+        {% endfor %}
+        </div>
+
+        <script>
+            function analyzeECG(noteId) {
+                fetch('/analyze_plot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ note_id: noteId })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('analysisResult').innerHTML = "Частота сердечных сокращений(ЧСС): "+ data.heart_rate +" ударов в минуту"
+                    document.getElementById('plot').style.display = "block";
+                    document.getElementById('plot').src = 'data:image/png;base64,' + data.plot_url;
+                })
+                .catch(error => console.error('Error:', error));
+            }
+            
+        </script>
     </div>
-    <script src="../static/js/detail.js"></script>
+ 
+
+        <script src="../static/js/detail.js"></script>
 </body>
 </html>

@@ -1,17 +1,3 @@
-function analyzeECG(noteId) {
-    fetch(`/analyze/${noteId}`)
-        .then(response => response.json())
-        .then(data => {
-            const resultDiv = document.getElementById('analysisResult');
-            resultDiv.innerHTML = ''; 
-            const prediction = data.ecg_data[0]; 
-            const paragraph = document.createElement('p');
-            resultDiv.appendChild(paragraph);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-}
 
 function downloadReport(noteId) {
     fetch(`/download_report/${noteId}`)
