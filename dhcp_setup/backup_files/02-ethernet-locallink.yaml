@@ -1,0 +1,4 @@
+network:
+  ethernets:
+    enx00e04c360050:
+      dhcp4: no
