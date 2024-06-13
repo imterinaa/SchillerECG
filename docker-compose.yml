@@ -1,0 +1,48 @@
+version: '3'
+services:
+  
+  backend:
+    build:
+      context: .
+    ports:
+      - "5001:5000"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+      MYSQL_DB: myDb
+    depends_on:
+      - mysql
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50' # Ограничиваем использование CPU до 50% от одного ядра
+          memory: 512M # Ограничиваем использование памяти до 512 МБ
+        reservations:
+          cpus: '0.2' # Гарантируем доступ к 25% от одного ядра
+          memory: 256M # Гарантируем доступ к 256 МБ памяти
+
+
+  mysql:
+    image: mysql:5.7
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: myDb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+    volumes:
+      - ./message.sql:/docker-entrypoint-initdb.d/notes.sql 
+      - mysql-data:/var/lib/mysql 
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75' # Ограничиваем использование CPU до 75% от одного ядра
+          memory: 1024M # Ограничиваем использование памяти до 1 ГБ
+        reservations:
+          cpus: '0.2' # Гарантируем доступ к 50% от одного ядра
+          memory: 512M # Гарантируем доступ к 512 МБ памяти 
+
+volumes:
+  mysql-data:
